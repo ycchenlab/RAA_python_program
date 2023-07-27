@@ -138,7 +138,7 @@ class FPQA:
             self.coord_l, self.coord_r, self.coord_d, self.coord_u = bounds[4:]
         else:  # AOD and SLM bounds are the same
             self.coord_l, self.coord_r, self.coord_d, self.coord_u = bounds[:4]
-        self.coord_d -= self.coord_u
+        self.coord_d -= (self.coord_u - 1)
 
 
     def setProgram(self, program):

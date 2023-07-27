@@ -195,8 +195,15 @@ def animateFPQA(file_name):
     ax.set_xticks([SITE_SEP*i for i in range(AOD_L, AOD_R)])
     ax.set_xticklabels([i for i in range(AOD_L, AOD_R)])
     ax.set_ylim([Y_LOWER, Y_UPPER])
-    ax.set_yticks([SITE_SEP*i for i in range(AOD_D, AOD_U)])
-    ax.set_yticklabels([i for i in range(AOD_D, AOD_U)])
+    y_middle = (Y_LOWER + Y_UPPER) / 2
+    ax.axhline(y_middle, linestyle='dashed', color='lightgray', linewidth=1)
+    ax.set_yticks([SITE_SEP*i for i in range(COORD_D, COORD_U)])
+    ax.set_yticklabels([i for i in range(COORD_D, COORD_U)])
+    y_label_x = X_LOWER - 45  # 調整 x 座標位置
+    y_label_2 = Y_UPPER - (Y_UPPER - Y_LOWER) * 0.25 # 調整 y 座標位置
+    y_label_1 = Y_LOWER + (Y_UPPER - Y_LOWER) * 0.25
+    plt.text(y_label_x, y_label_2, "two qubit gate", fontsize=12, ha='center', va='center', rotation='vertical')
+    plt.text(y_label_x, y_label_1, "one qubit gate", fontsize=12, ha='center', va='center', rotation='vertical')
     qubit_scatter = list()
     annotations = list()
     col_lines = list()
@@ -247,10 +254,16 @@ def animateFPQA(file_name):
                 # Rydberg interaction
                 
                 for int_site in interactions[tmp]:
-                    ax.add_patch(patches.Rectangle( (-R_SITE+SITE_SEP*int_site[0],
-                                                    -R_SITE+SITE_SEP*int_site[1]), 
-                                                2*R_SITE, 2*R_SITE,
-                                                facecolor="g", alpha=0.2))
+                    if int_site[1] >= 0:
+                        ax.add_patch(patches.Rectangle( (-R_SITE+SITE_SEP*int_site[0],
+                                                        -R_SITE+SITE_SEP*int_site[1]),
+                                                    2*R_SITE, 2*R_SITE,
+                                                    facecolor="g", alpha=0.2))
+                    else:
+                        ax.add_patch(patches.Rectangle((-R_SITE + SITE_SEP * int_site[0],
+                                                        -R_SITE + SITE_SEP * int_site[1]),
+                                                       2 * R_SITE, 2 * R_SITE,
+                                                       facecolor="r", alpha=0.2))
             
             if frame == frame_splits[tmp*2] + INTERACTION:
                 while ax.patches:
