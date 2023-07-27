@@ -1,0 +1,13 @@
+*.egg-info
+*.pyc
+.vscode
+/.idea
+dist/
+build/
+/.DS_Store
+/try.py
+__pycache__
+.pytest_cache
+/docs/build
+/docs/source/_static
+/docs/source/_templates
