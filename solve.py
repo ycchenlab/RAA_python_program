@@ -127,7 +127,7 @@ class FPQA:
         self.result_json = {}
         self.result_json['prefix'] = ''
         # row_per_site：每個座標點是 row_per_site * row_per_site的方陣組成
-        self.row_per_site = 3
+        self.row_per_site = 5
         self.runtimes = {}
 
     def setArchitecture(self, bounds):

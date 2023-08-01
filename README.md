@@ -15,22 +15,13 @@ tmp = FPQA()
 # initialize the solver object
 
 tmp.setArchitecture([0, 4, 0, 2])
-# specify the bounds of XY coordinates (0<=x<4 and 0<=y<2).
-# if specyfied 8 numbers, the latter four are the bounds for
-# AOD columns and rows. If unspecified, these bounds are set
-# to the bounds of X and Y.
+# specify the bounds of XY coordinates and Y coordinates will * 2 (0<=x<4 and -2<y<2).
 
-tmp.setProgram([(2, 4), (3, 5), (0, 1), (2, 3),
-               (4, 5), (0, 2), (1, 3), (0, 4), (1, 5)])
-# the program is a list of 2-tuples. We assume that the qubit
-# indices start from 0 and is consecutive.
-
-tmp.setPureGraph()
-# Since QAOA for 3-regular graphs circuit can be represented
-# as a graph. Setting this function is optinal, but makes solving faster.
-
-tmp.setCommutation()
-# Since all the ZZ-phase gates are commutable
+N = 4 ; A = []
+for i in range(1,N):
+    A += [(i,),(i-1,i),(i,),]
+tmp.setProgram(A)
+# the program is  N qubits GHZ state.
 
 ts = tmp.solve()
 # solve the result and save it to ts.json in ./results
