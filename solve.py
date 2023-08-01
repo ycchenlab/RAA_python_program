@@ -90,6 +90,7 @@ def dependencyExtract(list_gate_qubits, count_program_qubit: int):
                 list_dependency.append((list_last_gate[qubits[1]], i))
             list_last_gate[qubits[1]] = i
         # 用於two qubit gate
+    print(list_dependency)
     return tuple(list_dependency)
 
 
@@ -117,11 +118,11 @@ class FPQA:
         self.n_q = 0
         self.all_commutable = False
         self.satisfiable = False
-        # if0pt 不知道是甚麼
+        # ifOpt : 最佳化模型
         self.ifOpt = ifOpt
         self.all_aod = False
         self.no_transfer = False
-        # pure graph 不知道是甚麼
+        # pure graph : QAOA 才會用到的
         self.pure_graph = False
         self.result_json = {}
         self.result_json['prefix'] = ''
@@ -146,7 +147,9 @@ class FPQA:
         # assume that the qubit indices used are consecutively 0, 1, ...
         # n_g ： number of gates
         self.n_g = len(program)
+        print("number of gate : ", self.n_g)
         self.n_2g = 0
+        self.n_1g = 0
         # tmp ：將輸入的two qubit gate 小的放前面大的放後面 ()
         tmp = []
         for pair in program:
@@ -155,21 +158,18 @@ class FPQA:
                 self.n_2g += 1
             elif len(pair) == 1:
                 tmp = tmp + [pair]
+                self.n_1g += 1
         self.g_q = tuple(tmp)
         # tmp = [(2,4),(3,5)...]
         #tuple 用於轉換資料結構為元組 資料較小
         # g_2s我多加的
-        self.n_1g = self.n_g - self.n_2g
         self.g_2s = tuple(['Two qubit gate' for _ in range(self.n_2g)])
-        self.g_s = tuple(['single qubit gate' for _ in range(self.n_g-self.n_2g)])
+        self.g_1s = tuple(['single qubit gate' for _ in range(self.n_1g)])
         # 找出有幾個qubit (n_q)
         for gate in program:
-            # if isinstance(gate, (list, tuple)):
             self.n_q = max(gate[0], self.n_q)
             if len(gate) == 2 :
                 self.n_q = max(gate[1], self.n_q)
-            # else:
-            #     self.n_q = max(gate, self.n_q)
         self.n_q += 1
         # line 66 回傳dependencies gate ex：[(0,1),(1,3)...]
         self.dependencies = dependencyExtract(self.g_q, self.n_q)
@@ -179,12 +179,13 @@ class FPQA:
 
         # for graph state circuit
         self.gate_index = {}
-        #問題
+        #非QAOA用不到
         for i in range(self.n_q):
             for j in range(i+1, self.n_q):
                 self.gate_index[(i, j)] = -1
         for i in range(self.n_g):
             self.gate_index[self.g_q[i]] = i
+        # 用來幫two qubit gate 標上index 第一個是0 第二個是1 沒有出現的是-1
 
     def setCommutation(self):
         # 如果所有gate可以commute的話才使用
@@ -242,7 +243,7 @@ class FPQA:
         self.result_json['row_per_site'] = self.row_per_site
         self.result_json['n_g'] = self.n_g
         self.result_json['g_q'] = self.g_q
-        self.result_json['g_s'] = self.g_s
+        self.result_json['g_1s'] = self.g_1s
         self.result_json['g_2s'] = self.g_2s
         self.result_json['runtimes'] = self.runtimes
 
@@ -268,7 +269,6 @@ class FPQA:
             y = [[Int(f"y_p{i}_t{j}") for j in range(self.n_t)]
                  for i in range(self.n_q)]
             t = [Int(f"t_g{i}") for i in range(self.n_g)]
-            print(t)
 
             if self.ifOpt:
                 # ???
@@ -331,7 +331,7 @@ class FPQA:
                     fpqa.add(Implies(a[i][k], c[i][k+1] == c[i][k]))
                     fpqa.add(Implies(a[i][k], r[i][k+1] == r[i][k]))
 
-            # 同一colume/row 的兩個qubit會在同一個位置
+            # AOD在同一colume/row 的兩個qubit會在同一個位置
             # 完整
             for q0 in range(self.n_q):
                 for q1 in range(q0+1, self.n_q):
@@ -393,23 +393,11 @@ class FPQA:
                         fpqa.add(Implies(t[i] == j, y[p0][j] == y[p1][j]))
 
             # 加入single qubit gate的條件
-            # 只有執行 one qubit gate 的才能在下層
-            # 做出一個 one qubit gate 的list
-
             for i in range(self.n_g):
                 for j in range(self.n_t):
-                    for k in range(self.n_q):
-
-                        # q_list = [0 for _ in range(self.n_q)]
-                        if len(self.g_q[i]) == 1:
-                            p0 = self.g_q[i][0]
-                            fpqa.add(Implies(t[i] == j, y[p0][j] < 0))
-                            if k != p0:
-                                fpqa.add(Implies(t[i] == j, y[k][j] >= 0))
-                        else:
-                            fpqa.add(Implies(t[i] == j, y[k][j] >= 0))
-                            # q_list[p0] += 1
-                            # print(q_list)
+                    if len(self.g_q[i]) == 1:
+                        q0 = self.g_q[i][0]
+                        fpqa.add(Implies(t[i] == j, y[q0][j] < 0))
 
             if self.pure_graph:
                 # global CZ switch (only works for graph state circuit)
@@ -423,7 +411,6 @@ class FPQA:
                                 fpqa.add(Implies(And(x[i][k] == x[j][k],
                                                      y[i][k] == y[j][k]), t[self.gate_index[(i, j)]] == k))
                 # bound number of atoms in each site, needed if not double counting
-                #問題
                 for i in range(self.n_q):
                     for j in range(i+1, self.n_q):
                         for k in range(self.n_t):
@@ -433,10 +420,12 @@ class FPQA:
                                                                                  y[i][k] != y[j][k])))
             else:
                 # global CZ switch
-                #問題
+                # 當條件 And(x[i][k] == x[j][k], y[i][k] == y[j][k]) 為真時，回傳 1，否則回傳 0
                 fpqa.add(self.n_2g == sum([If(And(x[i][k] == x[j][k],
                                                  y[i][k] == y[j][k]), 1, 0) for i in range(self.n_q)
                                           for j in range(i+1, self.n_q) for k in range(self.n_t)]))
+                # 只有執行 one qubit gate 的才能在下層
+                fpqa.add(self.n_1g == sum ([If(y[i][k] < 0, 1, 0)for i in range(self.n_q) for k in range(self.n_t)]))
 
             # no atom transfer if two atoms meet
             for i in range(self.n_q):
@@ -467,6 +456,7 @@ class FPQA:
             else:
                 print(f"took time {duration_this}")
                 self.n_t += 1
+# 問題出在這 當gate數量多，這段code不可行
                 if self.no_transfer:
                     if self.n_t > 1 + self.n_g:
                         self.writeSettingJson()
@@ -475,7 +465,7 @@ class FPQA:
                     if self.n_t > self.n_g:
                         self.writeSettingJson()
                         return
-            # 問題
+
 
         # get results
         model = fpqa.model()
