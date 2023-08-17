@@ -126,7 +126,7 @@ class FPQA:
         self.result_json = {}
         self.result_json['prefix'] = ''
         # row_per_site：每個座標點是 row_per_site * row_per_site的方陣組成
-        self.row_per_site = 5
+        self.row_per_site = 6
         self.runtimes = {}
 
     def setArchitecture(self, bounds):
@@ -138,7 +138,9 @@ class FPQA:
             self.coord_l, self.coord_r, self.coord_d, self.coord_u = bounds[4:]
         else:  # AOD and SLM bounds are the same
             self.coord_l, self.coord_r, self.coord_d, self.coord_u = bounds[:4]
-        self.coord_d -= (self.coord_u - 1)
+        #原本
+        #self.coord_d -= (self.coord_u - 1)
+        self.coord_d -= (self.coord_u - 2)
 
 
     def setProgram(self, program):

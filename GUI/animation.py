@@ -31,13 +31,17 @@ def animateFPQA(file_name):
     COORD_R = data['coord_r']
     COORD_L = data['coord_l']
     COORD_U = data['coord_u']
-    COORD_D = data['coord_d']
+    #原本
+    #COORD_D = data['coord_d']
+    COORD_D = data['coord_d'] - 1
     AOD_L = data['aod_l']
     AOD_R = data['aod_r']
     AOD_U = data['aod_u']
-    AOD_D = data['aod_d']
+    #原本
+    #AOD_D = data['aod_d']
+    AOD_D = data['coord_d'] - 1
     layers = data['layers']
-    
+
 
     X_LOWER = -R_SITE + SITE_SEP*COORD_L
     X_UPPER = R_SITE + SITE_SEP*(COORD_R-1)
@@ -294,6 +298,8 @@ def animateFPQA(file_name):
                     text_obj = ax.texts[clear_num]
                     text_obj.set_visible(False)
                     clear_num -= 1
+
+
             if frame == frame_splits[tmp*2] + INTERACTION + 1:
                 for i, q in enumerate(layers[tmp]['qubits']):
                     if q['transfer']:
@@ -310,15 +316,12 @@ def animateFPQA(file_name):
 
 
             if frame == frame_splits[tmp*2] + STATIONARY_FRAMES - 1:
+                clear_num = -1
                 while ax.patches:
                     ax.patches.pop()
-                    ax.text()
-                    text_obj = ax.texts[-1]
+                    text_obj = ax.texts[clear_num]
                     text_obj.set_visible(False)
-                # while annotations:
-                    # annotation = annotations.pop(0)
-                    # annotation.remove()
-                    # ax.text.remove()
+                    clear_num -= 1
 
         # atoms are moving
         else:
@@ -330,6 +333,7 @@ def animateFPQA(file_name):
                                         frame-last_split)
                     new_y = qubitPosition(row_pts[tmp][q['r']], row_pts[tmp+1][q['r']],
                                         frame-last_split)
+
                     new_color = 'r'
                 else:
                     new_x = SITE_SEP*q['x']
@@ -358,9 +362,12 @@ def animateFPQA(file_name):
                                         [Y_LOWER, Y_UPPER], '--r', alpha=0.2)
                     col_lines.append(tmp_line)
             for row in range(AOD_D, AOD_U):
+                # print(row_coords)
                 if row_coords[tmp][row] != -1 and row_coords[tmp+1][row] != -1:
                     new_y = qubitPosition(row_pts[tmp][row], row_pts[tmp+1][row],
                                         frame-last_split)
+                    # print(f"frame: {frame}, row: {row}, last_split: {last_split}, tmp: {tmp}, row_pts[tmp][row]: {row_pts[tmp][row]},"
+                    #       f" row_pts[tmp+1][row]: {row_pts[tmp + 1][row]}")
                     tmp_line = ax.plot([X_LOWER, X_UPPER],
                                         [new_y, new_y], '--r', alpha=0.2)
                     row_lines.append(tmp_line)
