@@ -4,9 +4,27 @@ from z3 import Int, Bool, sat, And, If, Implies, Optimize, Solver, Not, is_true,
 import datetime
 import json
 
+# 存檔內容
+    # 1.	prefix ：檔名
+    # 2.	sat ：是否成功執行
+    # 3.	n_t ：階段數量
+    # 4.	n_q ：qubit 數量
+    # 5.	if_Opt ：是否最佳化
+    # 6.	no_transfer ：原子是否可以轉換
+    # 7.	row_per_site ： 每個座標可以放幾個行/列
+    # 8.	n_g：有幾個 gate
+    # 9.	g_q ： gate 作用線路
+    # 10.	g_1s ：single qubit 執行種類順序
+    # 11.	qubits ：a = 0 SLM, a = 1 AOD , x 、 y：座標位置 , c 、 r ：位於第幾行第幾列, transfer：是否轉換類型 (AOD /SLM)
+    # gates ：gate_id = 第幾個gate , q0 = qubit 編號
 
 def collisionExtract(list_gate_qubits):
-    # 完整 全部commute 才用的到
+    # 全部commute 才用的到
+    #列出兩個gate作用在同一個qubit上的碰撞關西
+    # input ：
+    # 	two qubit gate 的qubit列表(輸入在run.py 的tmp.setProgram中)
+    # output ：
+    # 	碰撞列表
     """Extract collision relations between the gates,
     If two gates g_1 and g_2 both acts on a qubit (at different time),
     we say that g_1 and g_2 collide on that qubit, which means that
@@ -19,7 +37,7 @@ def collisionExtract(list_gate_qubits):
     """
 
     list_collision = list()
-    # 會碰再一起的gate
+    # 會碰在一起的gate
     # We sweep through all the gates.  For each gate, we sweep through all the
     # gates after it, if they both act on some qubit, append them in the list.
     for g in range(len(list_gate_qubits)):
@@ -43,7 +61,8 @@ def collisionExtract(list_gate_qubits):
 
 
 def maxDegree(list_gate_qubits, count_program_qubit):
-    #完整
+    #傳回作用最多次的qubit
+    #有開commute功能才會用到
     cnt = [0 for _ in range(count_program_qubit)]
     for g in list_gate_qubits:
         cnt[g[0]] += 1
@@ -54,7 +73,7 @@ def maxDegree(list_gate_qubits, count_program_qubit):
 
 
 def dependencyExtract(list_gate_qubits, count_program_qubit: int):
-    # 完整
+    #列出兩個gate作用在同一個qubit上且兩個gate之間沒有其他gate的依賴關西
     # count_program_qubit：有幾個qubit  list_gate_qubits：two qubit gate 所用到的qubit
     """Extract dependency relations between the gates.
     If two gates g_1 and g_2 both acts on a qubit *and there is no gate
@@ -91,10 +110,12 @@ def dependencyExtract(list_gate_qubits, count_program_qubit: int):
             list_last_gate[qubits[1]] = i
         # 用於two qubit gate
     return tuple(list_dependency)
+#沒問題
 
 
 def pushLeftDepth(list_gate_qubits, count_program_qubit):
     #完整
+    #列出最大的depth也就是stage
     push_forward_depth = [0 for i in range(count_program_qubit)]
     for qubits in list_gate_qubits:
         if len(qubits) == 1:
@@ -110,12 +131,14 @@ def pushLeftDepth(list_gate_qubits, count_program_qubit):
 
 class FPQA:
     # ifOpt=False：這是建構子的另一個參數，並且有一個預設值False。這表示，當建立物件時，您可以選擇是否提供這個參數，如果未提供，則參數會被設定為False。
+    # if0pt用來最佳化某個參數
     def __init__(self, ifOpt=False):
         # number of stage
         self.n_t = 1
         # number of qubit
         self.n_q = 0
         self.all_commutable = False
+        # self.satisfiable用來判斷計算路徑是否成功
         self.satisfiable = False
         # ifOpt : 最佳化模型
         self.ifOpt = ifOpt
@@ -126,11 +149,11 @@ class FPQA:
         self.result_json = {}
         self.result_json['prefix'] = ''
         # row_per_site：每個座標點是 row_per_site * row_per_site的方陣組成
-        self.row_per_site = 6
+        self.row_per_site = 3
         self.runtimes = {}
 
     def setArchitecture(self, bounds):
-        # 完整
+        # 用來設定邊界
         # bounds = [left of X, right of X, top of Y, bottom of Y]
         self.aod_l, self.aod_r, self.aod_d, self.aod_u = bounds[:4]
         if len(bounds) == 8:
@@ -144,13 +167,26 @@ class FPQA:
 
 
     def setProgram(self, program):
+        #input：
+        # 所有的two qubit gate ex.[(0,1), (5,2)...]
+        #得出：
+        #self.n_1g (one qubit gate 數量)
+        # self.n_2g (two qubit gate 數量)
+        # self.n_g (gate 數量)
+        # self.n_t (stage 數量)
+        # self.n_q (qubit 數量)
+        # self.g_q (將輸入的two qubit gate 變成小的qubit放前面 ex(5,2)變(2,5))
+        # self.g_2s (假設三個gate得到[CZ,CZ,CZ])
+        # self.dependencies ([依賴列表])
+        # self.gate_index {(0,1):0 (2,5):1...}
         # assume that the qubit indices used are consecutively 0, 1, ...
-        # n_g ： number of gates
         gate_type = [operation for operation, _ in program]
+        # gate_type = ['Rx', 'Ry', 'Rx', 'Ry', 'Rx', 'Ry', 'CZ', 'Rx', 'Ry', 'CZ', 'Rx', 'Ry']
         program_only_num = []
         for operator, qubits in program:
             qubits_only = qubits if isinstance(qubits, int) else tuple(q for q in qubits if isinstance(q, int))
             program_only_num.append(qubits_only)
+        # program_only_num = [(0,), (0,), (1,), (1,), (2,), (2,), (1, 0), (1,), (1,), (1, 2), (2,), (2,)]
         self.n_g = len(program_only_num)
         print("number of gate : ", self.n_g)
         self.n_2g = 0
@@ -167,7 +203,6 @@ class FPQA:
         self.g_q = tuple(tmp)
         # tmp = [(2,4),(3,5)...]
         #tuple 用於轉換資料結構為元組 資料較小
-        # g_2s我多加的
         self.g_2s = []
         self.g_1s = []
         self.g_2s = tuple(['CZ' for _ in range(self.n_2g)])
@@ -187,6 +222,7 @@ class FPQA:
         self.n_q += 1
         # line 66 回傳dependencies gate ex：[(0,1),(1,3)...]
         self.dependencies = dependencyExtract(self.g_q, self.n_q)
+        # self.dependencies = ((0, 1), (2, 3), (4, 5), (1, 6), (3, 6), (6, 7), (7, 8), (8, 9), (5, 9), (9, 10), (10, 11))
         # n_t為number of stages
         # line 90 回傳push_forward_depth ex.[3,2,2....]
         self.n_t = pushLeftDepth(self.g_q, self.n_q)
@@ -262,9 +298,11 @@ class FPQA:
         self.result_json['runtimes'] = self.runtimes
 
     def solve(self,program):
+        # 判斷gate種類
         gate_type = [operation for operation, _ in program]
-        self.t_s = datetime.datetime.now()
         # 計時用
+        self.t_s = datetime.datetime.now()
+
         while not self.satisfiable:
             print(f"solving for depth {self.n_t}")
             self.t_s_tmp = datetime.datetime.now()
@@ -283,10 +321,11 @@ class FPQA:
                  for i in range(self.n_q)]
             y = [[Int(f"y_p{i}_t{j}") for j in range(self.n_t)]
                  for i in range(self.n_q)]
+            # t:第幾個gate
             t = [Int(f"t_g{i}") for i in range(self.n_g)]
 
             if self.ifOpt:
-                # ???
+                # 用來最佳化
                 # with issues right now
                 fpqa = Optimize()
                 d_x = [Real(f"mov_t_{i}") for i in range(self.n_t)]
@@ -298,6 +337,7 @@ class FPQA:
                 fpqa.add(tot_mov >= sum([d_x[j] for j in range(1, self.n_t)]))
                 fpqa.minimize(tot_mov)
             else:
+                # 用來求解(非最佳解)
                 fpqa = Solver()
                 # 使用Z3 解出問題，用add增加條件限制
 
@@ -355,7 +395,6 @@ class FPQA:
                             And(a[q0][s], a[q1][s], c[q0][s] == c[q1][s]), x[q0][s+1] == x[q1][s+1]))
                         fpqa.add(Implies(
                             And(a[q0][s], a[q1][s], r[q0][s] == r[q1][s]), y[q0][s+1] == y[q1][s+1]))
-
 
             # AOD columns/rows cannot move across each other
             # 完整
@@ -469,9 +508,9 @@ class FPQA:
                 print(f"total time {duration_total}")
                 self.satisfiable = True
             else:
+                # 當無法求出解的時候 時間+1，時間最多為gate的數量，因每個階段至少應該執行一個gate
                 print(f"took time {duration_this}")
                 self.n_t += 1
-# 問題出在這 當gate數量多，這段code不可行
                 if self.no_transfer:
                     if self.n_t > 1 + self.n_g:
                         self.writeSettingJson()
@@ -550,11 +589,11 @@ class FPQA:
                     if len(self.g_q[j]) == 2:
                         print(f"{gate_type[j]}: (p_{self.g_q[j][0]}, p_{self.g_q[j][1]})")
                         layer['gates'].append(
-                            {'id': j, 'q0': self.g_q[j][0], 'q1': self.g_q[j][1]})
+                            {'gate_id': j, 'q0': self.g_q[j][0], 'q1': self.g_q[j][1]})
                     elif len(self.g_q[j]) == 1:
                         print(f"{gate_type[j]}: (p_{self.g_q[j][0]})")
                         layer['gates'].append(
-                            {'id': j, 'q0': self.g_q[j][0]})
+                            {'gate_id': j, 'q0': self.g_q[j][0]})
             self.result_json['layers'].append(layer)
 
         self.coords = list()

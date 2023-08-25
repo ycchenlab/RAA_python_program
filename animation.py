@@ -230,7 +230,6 @@ def animateFPQA(file_name):
 
 
     def snapshot(frame):
-        text_objects_to_remove = []
         if frame == 0:
             for q in layers[0]['qubits']:
                 if q['a'] == 1:
@@ -261,7 +260,7 @@ def animateFPQA(file_name):
                 # print(f"frame {frame} tmp {tmp}")
                 # Rydberg interaction
                 for int_site in interactions[tmp]:
-
+                    print(int_site)
                     if int_site[1] >= 0:
                         ax.add_patch(patches.Rectangle( (-R_SITE+SITE_SEP*int_site[0],
                                                         -R_SITE+SITE_SEP*int_site[1]),
@@ -269,26 +268,29 @@ def animateFPQA(file_name):
                                                     facecolor="g", alpha=0.2))
                         text_x = -R_SITE + SITE_SEP * int_site[0] + R_SITE  # X 坐標
                         text_y = -R_SITE + SITE_SEP * int_site[1] + R_SITE
-                        text_objects_to_remove.append(ax.text(text_x, text_y, "CZ", color="black", ha="center", va="center", fontsize=18,weight='bold'))
+                        ax.text(text_x, text_y, "CZ", color="black", ha="center", va="center", fontsize=18,weight='bold')
                     else:
                         ax.add_patch(patches.Rectangle((-R_SITE + SITE_SEP * int_site[0],
                                                         -R_SITE+SITE_SEP*int_site[1]),
                                                        2 * R_SITE, 2 * R_SITE,
                                                        facecolor="r", alpha=0.2))
                         if one_qubit_gate[num] == 'Rx' :
+                            print('Rx')
                             text_x = -R_SITE + SITE_SEP * int_site[0] + R_SITE  # X 坐標
                             text_y = -R_SITE + SITE_SEP * int_site[1] + R_SITE  # Y 坐標
                             ax.text(text_x, text_y, "Rx", color="black", ha="center", va="center", fontsize=18,weight='bold')
                             num += 1
                         elif one_qubit_gate[num] == 'Ry' :
+                            print('Ry')
                             text_x = -R_SITE + SITE_SEP * int_site[0] + R_SITE  # X 坐標
                             text_y = -R_SITE + SITE_SEP * int_site[1] + R_SITE  # Y 坐標
-                            text_objects_to_remove.append(ax.text(text_x, text_y, "Ry", color="black", ha="center", va="center", fontsize=18,weight='bold'))
+                            ax.text(text_x, text_y, "Ry", color="black", ha="center", va="center", fontsize=18,weight='bold')
                             num += 1
                         elif one_qubit_gate[num] == 'Rz' :
+                            print('Rz')
                             text_x = -R_SITE + SITE_SEP * int_site[0] + R_SITE  # X 坐標
                             text_y = -R_SITE + SITE_SEP * int_site[1] + R_SITE  # Y 坐標
-                            text_objects_to_remove.append(ax.text(text_x, text_y, "Rz", color="black", ha="center", va="center", fontsize=18,weight='bold'))
+                            ax.text(text_x, text_y, "Rz", color="black", ha="center", va="center", fontsize=18,weight='bold')
                             num += 1
 
             if frame == frame_splits[tmp*2] + INTERACTION:

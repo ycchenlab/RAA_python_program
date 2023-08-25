@@ -6,36 +6,45 @@ from animation import animateFPQA
 import cv2
 import subprocess
 
-
+# 主視窗
 root = tk.Tk()
 root.title('RAA Quantum circuit')
 root.geometry("1200x550+150+100")
 
+# 主框架 畫面上藍色一大片
 main_frame = tk.Frame(root,bg="#3F51B5")
 main_frame.pack(fill=tk.BOTH, expand=1)
-# fill=tk.BOTH, expand=1
 
+
+#用來裝所有小frame的畫面左側的白色區域
 frame_container = tk.Frame(main_frame,bg="#FBFBFF",)
-# frame_container.place(x=20,y=10)
-# frame_container.config(width=300, height=300)
 frame_container.pack(side='left', fill='y')
 
+#字體
 lato_font = font.Font(family="Helvetica", size=10, weight="normal")
 lato_font_2 = font.Font(family="Helvetica", size=9, weight="normal")
 
+#x_num橫軸可以放多少個gate
+#y_num縱軸可以放多少個gate
+#interface_num用來記錄輸入的qubit數
+#data_matrix用來存gate位置資料
 x_num = 20
 y_num = 10
 interface_num = -1
 data_matrix = []
 
+
+#含有event的代表按下enter及可執行
 def update_button_command(event):
     global interface_num
     global data_matrix
+    # 得到輸入的值
     text = update_entry.get()
     float_number = float(text)
     integer_number = int(float_number)
     interface_num = integer_number
     data_matrix = [["" for _ in range(x_num)] for _ in range(interface_num)]
+    #將要得線和q[i]顯示出來
     for i in range(y_num):
         variable_name = f"qubit_label{i}"
         exec(f"{variable_name}.lower()")
@@ -86,6 +95,7 @@ def update_button_command_():
         variable_name = f"qubit_label{i}"
         exec(f"{variable_name}.lift()")
 
+#製造 y_num個標籤q[i]放到最下層
 for i in range(y_num):
     variable_name = f"qubit_label{i}"
     label = tk.Label(root,bg="#C4E1FF")
@@ -126,7 +136,7 @@ for i in range(2):
     exec(f"{variable_name}.grid(row=1+i, column=1)")
 
 architecture_label0.config(text = "X")
-architecture_label1.config(text = "Y")
+architecture_label1.config(text = "Y  ( ≥3 )")
 
 
 #gate
@@ -155,6 +165,7 @@ gates_label1.config(text = "Ry")
 gates_label2.config(text = "Rz")
 gates_label3.config(text = "CZ")
 
+#製造 y_num個線條放到最下層
 for i in range(y_num):
     variable_name = f"gates_sequence_line{i}"
     label = tk.Label(root)
@@ -163,6 +174,7 @@ for i in range(y_num):
     exec(f"{variable_name}.config(bg='#FFF7FB')")
     exec(f"{variable_name}.lower()")
 
+#製造x_num*y_num個空白gate
 for i in range(y_num):
     for j in range(x_num):
         variable_name = f"gates_sequence_button{i*x_num+j}"
@@ -176,7 +188,7 @@ for i in range(y_num):
         exec(f"{variable_name} = label")
         exec(f"{variable_name}.place(x=358+j*50, y=210+i*50, width=3, height=50)")
         exec(f"{variable_name}.lower()")
-
+# 按下會消失的功能
 def button_command(j, i):
     def gate_delete():
         variable_name = f"gates_sequence_button{x_num * j + i}"
@@ -185,7 +197,7 @@ def button_command(j, i):
         exec(f"{variable_name}.lower()")
         data_matrix[j][i] = ''
     return gate_delete
-
+# CZ 按下會消失的功能
 def CZ_button_command(initial_pos, final_pos, i):
     def gate_delete():
         variable_name = f"gates_sequence_button{x_num * initial_pos + i}"
@@ -203,6 +215,7 @@ def CZ_button_command(initial_pos, final_pos, i):
             exec(f"{variable_name}.lower()")
     return gate_delete
 
+# 輸入gate到想要的位置
 def gates_button0_command(event):
     global gates_sequence_numbers
     global data_matrix
@@ -409,6 +422,7 @@ gates_entry4.bind("<Return>", gates_button3_command)
 interface_num = 0
 CZ_control=0
 
+#刷新畫面，如果前面是空的讓gate往前移動
 def refresh():
     global gate_delete
     global interface_num
@@ -461,7 +475,7 @@ def refresh():
 
 refresh()
 
-
+#執行按鈕功能
 def run():
     global data_matrix
     global interface_num
